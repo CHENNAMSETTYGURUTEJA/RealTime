@@ -300,6 +300,17 @@
             return d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
         }
 
+        // helper: simple relative time fallback used by profile popup
+        function formatRelativeTime(ts){
+            if (!ts) return 'Unknown';
+            const sec = Math.floor((Date.now() - ts) / 1000);
+            if (sec < 60) return 'Just now';
+            if (sec < 3600) return Math.floor(sec / 60) + 'm ago';
+            if (sec < 86400) return Math.floor(sec / 3600) + 'h ago';
+            const d = new Date(ts);
+            return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+        }
+
         // helper: safe text node
         function createTextNode(text){
             const el = document.createElement('div');
@@ -336,6 +347,10 @@
             event.stopPropagation();
             closeProfileCard();
 
+            // try to find the clicked button reliably (support clicks on inner nodes)
+            const btn = event.currentTarget || (event.target && event.target.closest ? event.target.closest('button.more-btn') : null);
+            const btnRect = (btn && btn.getBoundingClientRect) ? btn.getBoundingClientRect() : { left: (event.clientX||0), right: (event.clientX||0), top: (event.clientY||0), height: 24 };
+
             // create opaque backdrop to hide background and block clicks
             const backdrop = document.createElement('div');
             backdrop.className = 'profile-backdrop';
@@ -343,48 +358,35 @@
             currentBackdrop = backdrop;
             backdrop.addEventListener('click', closeProfileCard);
 
-            // find the button we clicked (use currentTarget if available)
-            const btn = event.currentTarget || event.target;
-            const btnRect = (btn && btn.getBoundingClientRect) ? btn.getBoundingClientRect() : { left: event.clientX, right: event.clientX, top: event.clientY, height: 24 };
-
             // create card
             const card = document.createElement('div');
             card.className = 'profile-card';
             const isSelf = authorId && authorId === clientId;
 
-            // For self, show saved values instead of "Private"
-            const selfEmail = localStorage.getItem(EMAIL_KEY) || (emailInput && emailInput.value) || 'Not Provided';
-            const selfStatus = localStorage.getItem(STATUS_KEY) || (statusInput && statusInput.value) || 'Not Provided';
+            // For self, show saved values
+            const selfEmail = localStorage.getItem(EMAIL_KEY) || (emailInput && emailInput.value) || 'Not provided';
+            const selfStatus = localStorage.getItem(STATUS_KEY) || (statusInput && statusInput.value) || 'Not provided';
             const lastSeenSelf = 'Now';
 
+            // defaults for OTHER users set to "Not provided" (not "Loading…")
             card.innerHTML = '<div class="close" aria-hidden="true" style="float:right;cursor:pointer">✕</div>' +
                              '<div class="title">' + (isSelf ? (authorName || 'You') : (authorName || 'Anonymous')) + '</div>' +
-                             // default to "Not provided" instead of "Loading…"
-                             '<div class="line label">Email</div><div class="line" id="pc-email">' + (isSelf ? selfEmail : 'Not Provided') + '</div>' +
-                             '<div class="line label">Status</div><div class="line" id="pc-status">' + (isSelf ? selfStatus : 'Not Provided') + '</div>' +
-                             '<div class="line label">Last seen</div><div class="line" id="pc-lastseen">' + (isSelf ? lastSeenSelf : 'Not Provided') + '</div>';
+                             '<div class="line label">Email</div><div class="line" id="pc-email">' + (isSelf ? selfEmail : 'Not provided') + '</div>' +
+                             '<div class="line label">Status</div><div class="line" id="pc-status">' + (isSelf ? selfStatus : 'Not provided') + '</div>' +
+                             '<div class="line label">Last seen</div><div class="line" id="pc-lastseen">' + (isSelf ? lastSeenSelf : 'Not provided') + '</div>';
 
-            // append then measure to position beside the three-dots button
             document.body.appendChild(card);
             currentProfileCard = card;
 
-            // initial placement then compute exact position next to the button
+            // position beside the three-dots button
             const pad = 8;
-            // allow the card to render so we can measure size
             const rect = card.getBoundingClientRect();
-
-            // prefer to place to the right of the button, fall back to left if not enough space
             let left = btnRect.right + pad;
-            if (left + rect.width > window.innerWidth - 8) {
-                left = btnRect.left - rect.width - pad;
-            }
+            if (left + rect.width > window.innerWidth - 8) left = btnRect.left - rect.width - pad;
             if (left < 8) left = 8;
-
-            // vertically center aligned to the button
             let top = btnRect.top + (btnRect.height / 2) - (rect.height / 2);
             if (top + rect.height > window.innerHeight - 8) top = window.innerHeight - rect.height - 12;
             if (top < 8) top = 8;
-
             card.style.left = `${Math.round(left)}px`;
             card.style.top = `${Math.round(top)}px`;
 
@@ -394,19 +396,25 @@
             // load presence details only for other users
             if (!isSelf && authorId) {
                 db.ref('presence/' + authorId).once('value').then(snap=>{
-                    const v = snap.val();
-                    const email = v && v.email ? v.email : 'Not Provided';
-                    const status = v && v.status ? v.status : 'Not Provided';
-                    const lastSeen = v && v.lastSeen ? formatRelativeTime(v.lastSeen) : 'Not Provided';
+                    const v = snap.val() || {};
+                    const email = v.email ? v.email : 'Not provided';
+                    const status = v.status ? v.status : 'Not provided';
+                    const lastSeen = v.lastSeen ? formatRelativeTime(v.lastSeen) : 'Not provided';
                     const emailEl = document.getElementById('pc-email');
                     const statusEl = document.getElementById('pc-status');
                     const lastseenEl = document.getElementById('pc-lastseen');
                     if (emailEl) emailEl.textContent = email;
                     if (statusEl) statusEl.textContent = status;
                     if (lastseenEl) lastseenEl.textContent = lastSeen;
-                }).catch(()=> {
+                }).catch((err)=> {
+                    // ensure UI shows fallbacks even on error
                     const emailEl = document.getElementById('pc-email');
+                    const statusEl = document.getElementById('pc-status');
+                    const lastseenEl = document.getElementById('pc-lastseen');
                     if (emailEl) emailEl.textContent = 'Unavailable';
+                    if (statusEl) statusEl.textContent = 'Unavailable';
+                    if (lastseenEl) lastseenEl.textContent = 'Unavailable';
+                    console.error('Presence fetch error', err);
                 });
             }
 
