@@ -1,65 +1,568 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Real-Time Chat App</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Real-Time Chat App </title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: Arial; max-width: 500px; margin: auto; padding-top: 20px; }
-        #messages { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: scroll; margin-bottom: 10px; }
-        input { width: 70%; padding: 8px; }
-        button { width: 25%; padding: 8px; }
-        .msg { padding: 5px; border-bottom: 1px solid #eee; }
+        :root{
+            --bg:#0f1724;
+            --card:#0b1220;
+            --accent:#6ee7b7;
+            --muted:#9aa4b2;
+            --me:#1f2937;
+            --glass: rgba(255,255,255,0.04);
+            --radius:14px;
+        }
+        *{box-sizing:border-box}
+        html,body{height:100%}
+        body{
+            margin:0;
+            font-family:Inter,system-ui,Arial,sans-serif;
+            background:linear-gradient(180deg,#071029 0%, #071b2b 60%);
+            color:#e6f0f2;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            padding:24px;
+        }
+        .wrap{
+            width:100%;
+            max-width:820px;
+            height:80vh;
+            background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+            border-radius:18px;
+            box-shadow: 0 10px 40px rgba(2,6,23,0.6);
+            display:flex;
+            overflow:hidden;
+            border:1px solid rgba(255,255,255,0.04);
+        }
+
+        .sidebar{
+            width:300px;
+            padding:20px;
+            background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+            border-right:1px solid rgba(255,255,255,0.02);
+            display:flex;
+            flex-direction:column;
+            gap:16px;
+        }
+        .brand{display:flex;align-items:center;gap:12px}
+        .logo{
+            width:48px;height:48px;border-radius:10px;
+            background:linear-gradient(135deg,var(--accent),#60a5fa);
+            display:flex;align-items:center;justify-content:center;font-weight:700;color:#042029;
+            box-shadow:0 6px 18px rgba(102,126,234,0.12);
+        }
+        h1{font-size:20px;margin:0;font-weight:900;text-transform:uppercase;letter-spacing:0.8px;color:#ffffff}
+        .muted{color:var(--muted);font-size:13px}
+        .field{display:flex;flex-direction:column;gap:6px}
+        input,textarea,button.select{
+            background:var(--glass);border:1px solid rgba(255,255,255,0.03);
+            color:var(--accent);padding:10px;border-radius:10px;font-size:14px;
+        }
+        input::placeholder{color:#8ea7a3}
+        .small{font-size:12px;color:var(--muted)}
+        .footer-note{margin-top:auto;font-size:12px;color:var(--muted)}
+
+        .chat{
+            flex:1;
+            display:flex;
+            flex-direction:column;
+            gap:12px;
+            padding:18px;
+        }
+        .messages{
+            flex:1;
+            background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent);
+            border-radius:12px;padding:16px;overflow:auto;
+            display:flex;flex-direction:column;gap:10px;
+        }
+        .msg{
+            display:flex;gap:10px;align-items:flex-end;max-width:75%;
+            padding:8px 10px;border-radius:10px;background:rgba(255,255,255,0.02);
+            color:#e6f0f2;font-size:13px;position:relative;
+        }
+        .msg.me{
+            margin-left:auto;background:linear-gradient(90deg, rgba(109,40,217,0.18), rgba(34,197,94,0.06));
+            color:#eafff4;
+            border:1px solid rgba(110,231,183,0.08);
+        }
+        .avatar{
+            width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,0.03);
+            display:inline-flex;align-items:center;justify-content:center;color:var(--accent);font-weight:600;
+            flex-shrink:0;
+        }
+        .avatar:focus{outline:2px solid rgba(110,231,183,0.12);outline-offset:2px}
+        .bubble{display:flex;flex-direction:column;gap:6px;flex:1}
+        .meta{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted)}
+        .time{font-size:11px;color:var(--muted)}
+        .input-row{display:flex;gap:10px;align-items:center}
+        .text-input{
+            flex:1;border-radius:12px;padding:12px 14px;background:rgba(255,255,255,0.02);
+            color:#e6f0f2;border:1px solid rgba(255,255,255,0.03);font-size:14px;resize:none;
+            min-height:46px;max-height:120px;overflow:auto;
+        }
+        .send-btn{
+            background:linear-gradient(135deg,#36d399,#60a5fa);
+            color:#042029;border:none;padding:12px 14px;border-radius:12px;font-weight:600;
+            cursor:pointer;box-shadow:0 8px 18px rgba(60,100,220,0.12);
+        }
+        .send-btn:active{transform:translateY(1px)}
+        .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px}
+        .status{font-size:13px;color:var(--muted)}
+
+        /* make the room title (CHATS) larger and bold */
+        #roomTitle{
+            font-size:14px;
+            font-weight:700;
+            color:#ffffff;
+            letter-spacing:0.5px;
+        }
+
+        /* make the main app title larger, bold and uppercase */
+        h1{
+            font-size:16px;
+            margin:0;
+            font-weight:900;
+            text-transform:uppercase;
+            letter-spacing:0.8px;
+            color:#ffffff;
+        }
+
+        /* three-dots "more" button at message edge */
+        .more-btn{
+            width:30px;height:30px;border-radius:8px;border:none;background:transparent;color:var(--muted);
+            display:inline-flex;align-items:center;justify-content:center;cursor:pointer;margin-left:8px;
+        }
+        .more-btn:hover{background:rgba(255,255,255,0.02);color:var(--accent)}
+        .more-btn:focus{outline:2px solid rgba(110,231,183,0.12);outline-offset:2px}
+
+        /* profile popup */
+        .profile-backdrop{
+          position:fixed;
+          inset:0;
+          background:rgba(0,0,0,0.65); /* hides background */
+          z-index:9998;
+          backdrop-filter: none; /* ensure no transparency/blur */
+        }
+        .profile-card{
+          position:fixed; /* <-- ensure card is positioned relative to viewport */
+          min-width:220px;
+          max-width:320px;
+          background: #071029; /* fully opaque, high contrast */
+          color: #e6f0f2;      /* bright text */
+          z-index:9999;        /* above the backdrop */
+          border: 1px solid rgba(255,255,255,0.06);
+          box-shadow: 0 14px 50px rgba(2,6,23,0.85);
+          padding:14px;
+          border-radius:10px;
+        }
+        .profile-card .line { color:#dbeef0; font-size:13px; }
+        .profile-card .label { color:#9aa4b2; font-size:12px; }
+        /* increased user name size inside the three-dots profile card */
+        .profile-card .title {
+            font-size:18px;
+            font-weight:700;
+            color:#ffffff;
+            margin-bottom:8px;
+            line-height:1.1;
+        }
+
+        @media (max-width:800px){
+            .wrap{flex-direction:column;height:92vh}
+            .sidebar{width:100%;flex-direction:row;align-items:center;padding:12px}
+            .chat{padding:12px}
+        }
     </style>
 </head>
 <body>
-    <h2>Real-Time Chat App</h2>
-    <div id="messages"></div>
-    <input type="text" id="messageInput" placeholder="Type message...">
-    <button onclick="sendMessage()">Send</button>
+    <div class="wrap" role="application" aria-label="Real-time chat app">
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="logo">RT</div>
+                <div>
+                    <h1>Real-Time Chat App</h1>
+                    <div class="muted">Secure — Fast — Realtime</div>
+                </div>
+            </div>
 
-    <!-- Firebase Scripts (compat build so the older firebase.* API works) -->
+            <div class="field">
+                <label class="small">Display name</label>
+                <input id="displayName" placeholder="Your name (optional)">
+            </div>
+
+            <!-- Replaced Theme with Email and Status -->
+            <div class="field">
+                <label class="small">Email (optional)</label>
+                <input id="email" placeholder="you@example.com">
+            </div>
+
+            <div class="field">
+                <label class="small">Status (optional)</label>
+                <input id="status" placeholder="Available, Busy, Away...">
+            </div>
+
+            <div class="footer-note">Messages sync instantly via Firebase Realtime Database. Email and status are optional and used only for presence metadata.</div>
+            <div style="height:8px"></div>
+        </aside>
+
+        <section class="chat">
+            <div class="topbar">
+                <div class="status" id="roomTitle">CHATS</div>
+                <div class="status" id="onlineCount">Connecting…</div>
+            </div>
+
+            <div id="messages" class="messages" aria-live="polite" role="log"></div>
+
+            <div style="display:flex;gap:12px;align-items:flex-end">
+                <div style="flex:1;display:flex;flex-direction:column;">
+                    <textarea id="messageInput" class="text-input" placeholder="Type a message..."></textarea>
+                    <div style="display:flex;justify-content:space-between;margin-top:8px">
+                        <div class="small muted" id="draftLength">0 / 1000</div>
+                        <div class="small muted" id="hint">Tip: add a name, email and status to personalize presence</div>
+                    </div>
+                </div>
+                <button id="sendBtn" class="send-btn">Send</button>
+            </div>
+        </section>
+    </div>
+
+    <!-- Firebase (compat) -->
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
 
     <script>
-        // 1️⃣ Firebase Config — replace placeholders if needed
+        // Minimal hardening & UX improvements for the original demo.
         const firebaseConfig = {
             apiKey: "AIzaSyBHcUSg8i4A2zd7l_0IqOmDd9mCE7OsaAY",
             authDomain: "real-time-chat-app-651db.firebaseapp.com",
-            databaseURL: "https://real-time-chat-app-651db-default-rtdb.firebaseio.com/", // confirm in Console
+            databaseURL: "https://real-time-chat-app-7b561-default-rtdb.asia-southeast1.firebasedatabase.app/",
             projectId: "real-time-chat-app-651db",
             storageBucket: "real-time-chat-app-651db.firebasestorage.app",
             messagingSenderId: "1007964738166",
-            appId: "1:1007964738166:web:REPLACE_WITH_WEB_APP_ID" // replace with your Web App's appId from Firebase Console
+            appId: "1:1007964738166:web:REPLACE_WITH_WEB_APP_ID"
         };
 
-        // Initialize Firebase (compat)
+        // init
         const app = firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
+        const messagesRef = db.ref("chat");
 
-        const messagesDiv = document.getElementById("messages");
-
-        // 2️⃣ Send message
-        function sendMessage() {
-            const msg = document.getElementById("messageInput").value;
-            if (msg.trim() === "") return;
-
-            const newMsg = db.ref("chat").push();
-            newMsg.set({
-                text: msg,
-                timestamp: Date.now()
-            });
-
-            document.getElementById("messageInput").value = "";
+        // identify client
+        const CLIENT_KEY = 'rt_chat_client_id_v1';
+        let clientId = localStorage.getItem(CLIENT_KEY);
+        if (!clientId) {
+            clientId = 'c_' + Math.random().toString(36).slice(2,10);
+            localStorage.setItem(CLIENT_KEY, clientId);
         }
 
-        // 3️⃣ Listen for new messages in real-time
-        db.ref("chat").on("child_added", (snapshot) => {
-            const message = snapshot.val();
-            const div = document.createElement("div");
-            div.classList.add("msg");
-            div.textContent = message.text;
-            messagesDiv.appendChild(div);
+        // elements
+        const messagesDiv = document.getElementById('messages');
+        const input = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const displayNameInput = document.getElementById('displayName');
+        const emailInput = document.getElementById('email');
+        const statusInput = document.getElementById('status');
+        const onlineCountEl = document.getElementById('onlineCount');
+        const draftLength = document.getElementById('draftLength');
+
+        // restore name, email, status if present
+        const NAME_KEY = 'rt_chat_name_v1';
+        const EMAIL_KEY = 'rt_chat_email_v1';
+        const STATUS_KEY = 'rt_chat_status_v1';
+
+        const savedName = localStorage.getItem(NAME_KEY);
+        const savedEmail = localStorage.getItem(EMAIL_KEY);
+        const savedStatus = localStorage.getItem(STATUS_KEY);
+        if (savedName) displayNameInput.value = savedName;
+        if (savedEmail) emailInput.value = savedEmail;
+        if (savedStatus) statusInput.value = savedStatus;
+
+        displayNameInput.addEventListener('change', ()=>{
+            localStorage.setItem(NAME_KEY, displayNameInput.value.trim());
+            updatePresence();
+        });
+        emailInput.addEventListener('change', ()=>{
+            localStorage.setItem(EMAIL_KEY, emailInput.value.trim());
+            updatePresence();
+        });
+        statusInput.addEventListener('change', ()=>{
+            localStorage.setItem(STATUS_KEY, statusInput.value.trim());
+            updatePresence();
+        });
+
+        // helper: format time nicely
+        function formatTime(ts){
+            const d = new Date(ts);
+            return d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+        }
+
+        // helper: safe text node
+        function createTextNode(text){
+            const el = document.createElement('div');
+            el.textContent = text;
+            return el;
+        }
+
+        // profile popup helpers
+        let currentProfileCard = null;
+        let currentBackdrop = null;
+
+        function closeProfileCard(){
+          if (currentProfileCard) {
+            currentProfileCard.remove();
+            currentProfileCard = null;
+          }
+          if (currentBackdrop) {
+            currentBackdrop.remove();
+            currentBackdrop = null;
+            document.removeEventListener('keydown', onEscKey);
+          }
+          document.removeEventListener('click', outsideClickHandler);
+        }
+
+        function outsideClickHandler(e){
+          if (!currentProfileCard) return;
+          if (!currentProfileCard.contains(e.target)) closeProfileCard();
+        }
+        function onEscKey(e){
+          if (e.key === 'Escape') closeProfileCard();
+        }
+
+        function showProfile(event, authorId, authorName){
+            event.stopPropagation();
+            closeProfileCard();
+
+            // create opaque backdrop to hide background and block clicks
+            const backdrop = document.createElement('div');
+            backdrop.className = 'profile-backdrop';
+            document.body.appendChild(backdrop);
+            currentBackdrop = backdrop;
+            backdrop.addEventListener('click', closeProfileCard);
+
+            // find the button we clicked (use currentTarget if available)
+            const btn = event.currentTarget || event.target;
+            const btnRect = (btn && btn.getBoundingClientRect) ? btn.getBoundingClientRect() : { left: event.clientX, right: event.clientX, top: event.clientY, height: 24 };
+
+            // create card
+            const card = document.createElement('div');
+            card.className = 'profile-card';
+            const isSelf = authorId && authorId === clientId;
+
+            // For self, show saved values instead of "Private"
+            const selfEmail = localStorage.getItem(EMAIL_KEY) || (emailInput && emailInput.value) || 'Not Provided';
+            const selfStatus = localStorage.getItem(STATUS_KEY) || (statusInput && statusInput.value) || 'Not Provided';
+            const lastSeenSelf = 'Now';
+
+            card.innerHTML = '<div class="close" aria-hidden="true" style="float:right;cursor:pointer">✕</div>' +
+                             '<div class="title">' + (isSelf ? (authorName || 'You') : (authorName || 'Anonymous')) + '</div>' +
+                             // default to "Not provided" instead of "Loading…"
+                             '<div class="line label">Email</div><div class="line" id="pc-email">' + (isSelf ? selfEmail : 'Not Provided') + '</div>' +
+                             '<div class="line label">Status</div><div class="line" id="pc-status">' + (isSelf ? selfStatus : 'Not Provided') + '</div>' +
+                             '<div class="line label">Last seen</div><div class="line" id="pc-lastseen">' + (isSelf ? lastSeenSelf : 'Not Provided') + '</div>';
+
+            // append then measure to position beside the three-dots button
+            document.body.appendChild(card);
+            currentProfileCard = card;
+
+            // initial placement then compute exact position next to the button
+            const pad = 8;
+            // allow the card to render so we can measure size
+            const rect = card.getBoundingClientRect();
+
+            // prefer to place to the right of the button, fall back to left if not enough space
+            let left = btnRect.right + pad;
+            if (left + rect.width > window.innerWidth - 8) {
+                left = btnRect.left - rect.width - pad;
+            }
+            if (left < 8) left = 8;
+
+            // vertically center aligned to the button
+            let top = btnRect.top + (btnRect.height / 2) - (rect.height / 2);
+            if (top + rect.height > window.innerHeight - 8) top = window.innerHeight - rect.height - 12;
+            if (top < 8) top = 8;
+
+            card.style.left = `${Math.round(left)}px`;
+            card.style.top = `${Math.round(top)}px`;
+
+            const closeEl = card.querySelector('.close');
+            if (closeEl) closeEl.addEventListener('click', closeProfileCard);
+
+            // load presence details only for other users
+            if (!isSelf && authorId) {
+                db.ref('presence/' + authorId).once('value').then(snap=>{
+                    const v = snap.val();
+                    const email = v && v.email ? v.email : 'Not Provided';
+                    const status = v && v.status ? v.status : 'Not Provided';
+                    const lastSeen = v && v.lastSeen ? formatRelativeTime(v.lastSeen) : 'Not Provided';
+                    const emailEl = document.getElementById('pc-email');
+                    const statusEl = document.getElementById('pc-status');
+                    const lastseenEl = document.getElementById('pc-lastseen');
+                    if (emailEl) emailEl.textContent = email;
+                    if (statusEl) statusEl.textContent = status;
+                    if (lastseenEl) lastseenEl.textContent = lastSeen;
+                }).catch(()=> {
+                    const emailEl = document.getElementById('pc-email');
+                    if (emailEl) emailEl.textContent = 'Unavailable';
+                });
+            }
+
+            // close when clicking outside or pressing Escape
+            setTimeout(()=> document.addEventListener('click', outsideClickHandler), 50);
+            document.addEventListener('keydown', onEscKey);
+        }
+
+        // render message
+        function renderMessage(data){
+            const {text, timestamp, authorId, authorName} = data || {};
+            const wrapper = document.createElement('div');
+            const isMe = authorId && authorId === clientId;
+            wrapper.className = 'msg' + (isMe ? ' me' : '');
+
+            const avatar = document.createElement('div');
+            avatar.className = 'avatar';
+            avatar.textContent = (authorName || authorId || 'U').toString().slice(0,1).toUpperCase();
+            avatar.tabIndex = 0;
+            // avatar no longer opens profile
+
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+
+            const meta = document.createElement('div');
+            meta.className = 'meta';
+            const nameSpan = document.createElement('div');
+            nameSpan.textContent = authorName ? authorName : (isMe ? 'You' : 'Anonymous');
+            nameSpan.style.fontWeight = '600';
+            const timeSpan = document.createElement('div');
+            timeSpan.className = 'time';
+            timeSpan.textContent = timestamp ? formatTime(timestamp) : '';
+
+            meta.appendChild(nameSpan);
+            meta.appendChild(timeSpan);
+
+            const content = document.createElement('div');
+            content.appendChild(createTextNode(text || ''));
+
+            bubble.appendChild(meta);
+            bubble.appendChild(content);
+
+            wrapper.appendChild(avatar);
+            wrapper.appendChild(bubble);
+
+            // only add the three-dots "more" button for OTHER users
+            if (!isMe) {
+                const more = document.createElement('button');
+                more.className = 'more-btn';
+                more.innerHTML = '⋯';
+                more.title = 'More';
+                more.setAttribute('aria-label','Open profile options');
+                more.tabIndex = 0;
+
+                more.addEventListener('click', (e)=>{
+                    // open profile card anchored to click
+                    showProfile(e, authorId || '', authorName || '');
+                });
+                more.addEventListener('keydown', (e)=>{
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        showProfile(e, authorId || '', authorName || '');
+                    }
+                });
+
+                wrapper.appendChild(more);
+            }
+
+            messagesDiv.appendChild(wrapper);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // send message
+        function sendMessage(){
+            const txt = input.value.trim();
+            if (!txt) return;
+            const name = displayNameInput.value.trim() || '';
+            const payload = {
+                text: txt,
+                timestamp: Date.now(),
+                authorId: clientId,
+                authorName: name
+            };
+            const newRef = messagesRef.push();
+            newRef.set(payload).catch(err=>{
+                console.error('Send failed', err);
+            });
+            input.value = '';
+            draftLength.textContent = '0 / 1000';
+        }
+
+        // events
+        sendBtn.addEventListener('click', sendMessage);
+        input.addEventListener('keydown', (e)=>{
+            if (e.key === 'Enter' && !e.shiftKey){
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        input.addEventListener('input', ()=>{
+            draftLength.textContent = `${Math.min(input.value.length,1000)} / 1000`;
+            if (input.value.length > 1000) input.value = input.value.slice(0,1000);
+        });
+
+        // realtime listener
+        messagesRef.limitToLast(200).on('child_added', snap=>{
+            try{
+                renderMessage(snap.val());
+            }catch(e){
+                console.error('Render error', e);
+            }
+        });
+
+        // track simple "online" using presence node (best-effort)
+        const presenceRef = db.ref('presence/' + clientId);
+        function updatePresence(){
+            try{
+                presenceRef.set({
+                    lastSeen: firebase.database.ServerValue.TIMESTAMP,
+                    name: displayNameInput.value || null,
+                    status: statusInput.value || null,
+                    email: emailInput.value || null
+                });
+            }catch(e){
+                console.error('Presence update failed', e);
+            }
+        }
+        function goOnline(){
+            updatePresence();
+            presenceRef.onDisconnect().remove();
+        }
+        goOnline();
+
+        // show online count (approx)
+        const presenceRoot = db.ref('presence');
+        presenceRoot.on('value', snapshot=>{
+            const val = snapshot.val() || {};
+            const count = Object.keys(val).length;
+            onlineCountEl.textContent = `${count} online`;
+        });
+
+        // initial focus
+        input.focus();
+
+        // small accessibility enhancement: announce new messages for screen readers by toggling aria-live region text
+        const announce = document.createElement('div');
+        announce.style.position='absolute';
+        announce.style.left='-9999px';
+        announce.setAttribute('aria-live','polite');
+        announce.id='announcer';
+        document.body.appendChild(announce);
+
+        // update announcer when new messages appear
+        messagesRef.limitToLast(1).on('child_added', snap=>{
+            const m = snap.val();
+            if (m) document.getElementById('announcer').textContent = (m.authorName||'Someone') + ' sent a message';
         });
     </script>
 </body>
