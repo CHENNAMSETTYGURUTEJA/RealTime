@@ -102,7 +102,7 @@
         .input-row{display:flex;gap:10px;align-items:center}
         .text-input{
             flex:1;border-radius:12px;padding:12px 14px;background:rgba(255,255,255,0.02);
-            color:#e6f0f2;border:1px solid rgba(255,255,255,0.03);font-size:14px;resize:none;
+            color:#ef0f2;border:1px solid rgba(255,255,255,0.03);font-size:14px;resize:none;
             min-height:46px;max-height:120px;overflow:auto;
         }
         .send-btn{
@@ -344,12 +344,13 @@
         }
 
         function showProfile(event, authorId, authorName){
-            event.stopPropagation();
+            // stop propagation and close any existing card
+            event && event.stopPropagation && event.stopPropagation();
             closeProfileCard();
 
-            // try to find the clicked button reliably (support clicks on inner nodes)
-            const btn = event.currentTarget || (event.target && event.target.closest ? event.target.closest('button.more-btn') : null);
-            const btnRect = (btn && btn.getBoundingClientRect) ? btn.getBoundingClientRect() : { left: (event.clientX||0), right: (event.clientX||0), top: (event.clientY||0), height: 24 };
+            // find the clicked button reliably (support clicks on inner nodes)
+            const btn = (event && (event.currentTarget || (event.target && event.target.closest ? event.target.closest('button.more-btn') : null))) || null;
+            const btnRect = (btn && btn.getBoundingClientRect) ? btn.getBoundingClientRect() : { left: (event && event.clientX) || 0, right: (event && event.clientX) || 0, top: (event && event.clientY) || 0, height: 24 };
 
             // create opaque backdrop to hide background and block clicks
             const backdrop = document.createElement('div');
@@ -364,11 +365,11 @@
             const isSelf = authorId && authorId === clientId;
 
             // For self, show saved values
-            const selfEmail = localStorage.getItem(EMAIL_KEY) || (emailInput && emailInput.value) || 'Not provided';
-            const selfStatus = localStorage.getItem(STATUS_KEY) || (statusInput && statusInput.value) || 'Not provided';
+            const selfEmail = (localStorage.getItem(EMAIL_KEY) || (emailInput && emailInput.value) || 'Not provided');
+            const selfStatus = (localStorage.getItem(STATUS_KEY) || (statusInput && statusInput.value) || 'Not provided');
             const lastSeenSelf = 'Now';
 
-            // defaults for OTHER users set to "Not provided" (not "Loading…")
+            // defaults for OTHER users set to "Not provided"
             card.innerHTML = '<div class="close" aria-hidden="true" style="float:right;cursor:pointer">✕</div>' +
                              '<div class="title">' + (isSelf ? (authorName || 'You') : (authorName || 'Anonymous')) + '</div>' +
                              '<div class="line label">Email</div><div class="line" id="pc-email">' + (isSelf ? selfEmail : 'Not provided') + '</div>' +
@@ -378,7 +379,7 @@
             document.body.appendChild(card);
             currentProfileCard = card;
 
-            // position beside the three-dots button
+            // position beside the three-dots button with collision avoidance
             const pad = 8;
             const rect = card.getBoundingClientRect();
             let left = btnRect.right + pad;
@@ -394,28 +395,34 @@
             if (closeEl) closeEl.addEventListener('click', closeProfileCard);
 
             // load presence details only for other users
-            if (!isSelf && authorId) {
-                db.ref('presence/' + authorId).once('value').then(snap=>{
-                    const v = snap.val() || {};
-                    const email = v.email ? v.email : 'Not provided';
-                    const status = v.status ? v.status : 'Not provided';
-                    const lastSeen = v.lastSeen ? formatRelativeTime(v.lastSeen) : 'Not provided';
-                    const emailEl = document.getElementById('pc-email');
-                    const statusEl = document.getElementById('pc-status');
-                    const lastseenEl = document.getElementById('pc-lastseen');
-                    if (emailEl) emailEl.textContent = email;
-                    if (statusEl) statusEl.textContent = status;
-                    if (lastseenEl) lastseenEl.textContent = lastSeen;
-                }).catch((err)=> {
-                    // ensure UI shows fallbacks even on error
-                    const emailEl = document.getElementById('pc-email');
-                    const statusEl = document.getElementById('pc-status');
-                    const lastseenEl = document.getElementById('pc-lastseen');
-                    if (emailEl) emailEl.textContent = 'Unavailable';
-                    if (statusEl) statusEl.textContent = 'Unavailable';
-                    if (lastseenEl) lastseenEl.textContent = 'Unavailable';
-                    console.error('Presence fetch error', err);
-                });
+            if (!isSelf) {
+                const emailEl = document.getElementById('pc-email');
+                const statusEl = document.getElementById('pc-status');
+                const lastseenEl = document.getElementById('pc-lastseen');
+
+                // if Firebase/db is available, try to fetch presence; otherwise show fallback
+                if (authorId && typeof db !== 'undefined' && db && db.ref) {
+                    db.ref('presence/' + authorId).once('value').then(snap=>{
+                        const v = snap.val() || {};
+                        const email = v.email ? v.email : 'Not provided';
+                        const status = v.status ? v.status : 'Not provided';
+                        const lastSeen = v.lastSeen ? formatRelativeTime(v.lastSeen) : 'Not provided';
+                        if (emailEl) emailEl.textContent = email;
+                        if (statusEl) statusEl.textContent = status;
+                        if (lastseenEl) lastseenEl.textContent = lastSeen;
+                    }).catch((err)=>{
+                        // always update UI with fallback on error
+                        if (emailEl) emailEl.textContent = 'Unavailable';
+                        if (statusEl) statusEl.textContent = 'Unavailable';
+                        if (lastseenEl) lastseenEl.textContent = 'Unavailable';
+                        console.error('Presence fetch error', err);
+                    });
+                } else {
+                    // no authorId or db -> ensure fields show a clear fallback
+                    if (emailEl) emailEl.textContent = 'Not provided';
+                    if (statusEl) statusEl.textContent = 'Not provided';
+                    if (lastseenEl) lastseenEl.textContent = 'Not provided';
+                }
             }
 
             // close when clicking outside or pressing Escape
